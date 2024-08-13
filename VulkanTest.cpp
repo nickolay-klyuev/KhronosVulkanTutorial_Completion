@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include <vector>
 
@@ -56,6 +57,16 @@ void DestroyDebugUtilsMessengerEXT
 class MyTestVulkanApplication
 {
 public:
+    struct QueueFamiliesIndices
+    {
+        std::optional<uint32_t> graphicsFamily;
+
+        bool isComplete() const
+        {
+            return graphicsFamily.has_value();
+        }
+    };
+    
     MyTestVulkanApplication() = default;
     
     void run()
@@ -116,7 +127,9 @@ private:
 
     bool isDeviceSuitable(VkPhysicalDevice device)
     {
-        return true;
+        QueueFamiliesIndices indies = findQueueFamilies(device);
+        
+        return indies.isComplete();
 
         // Just for example:
         VkPhysicalDeviceProperties deviceProperties;
@@ -128,15 +141,32 @@ private:
         return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader;
     }
 
-    struct QueueFamiliesIndices
-    {
-        uint32_t graphicsFamily;
-    };
-
     QueueFamiliesIndices findQueueFamilies(VkPhysicalDevice device)
     {
         QueueFamiliesIndices indices{};
 
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+        int i = 0;
+        for (const auto& queueFamily : queueFamilies)
+        {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                indices.graphicsFamily = i;
+            }
+
+            if (indices.isComplete())
+            {
+                break;
+            }
+
+            ++i;
+        }
+        
         return indices;
     }
 
